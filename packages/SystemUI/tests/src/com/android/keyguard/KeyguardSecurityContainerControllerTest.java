@@ -23,9 +23,6 @@ import static com.android.keyguard.KeyguardSecurityContainer.MODE_ONE_HANDED;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.assertTrue;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -71,6 +68,7 @@ import com.android.systemui.log.SessionTracker;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.statusbar.policy.ConfigurationController;
+import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.statusbar.policy.UserSwitcherController;
 import com.android.systemui.util.settings.GlobalSettings;
@@ -92,7 +90,9 @@ import java.util.Optional;
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper()
 public class KeyguardSecurityContainerControllerTest extends SysuiTestCase {
+    private static final int VIEW_WIDTH = 1600;
     private static final int TARGET_USER_ID = 100;
+
     @Rule
     public MockitoRule mRule = MockitoJUnit.rule();
     @Mock
@@ -207,17 +207,8 @@ public class KeyguardSecurityContainerControllerTest extends SysuiTestCase {
                 mKeyguardStateController, mKeyguardSecurityViewFlipperController,
                 mConfigurationController, mFalsingCollector, mFalsingManager,
                 mUserSwitcherController, mFeatureFlags, mGlobalSettings,
-                mSessionTracker, Optional.of(mSideFpsController), mFalsingA11yDelegate,
-                mTelephonyManager, mViewMediatorCallback, mAudioManager);
-    }
-
-    @Test
-    public void onInitConfiguresViewMode() {
-        mKeyguardSecurityContainerController.onInit();
-        verify(mView).initMode(eq(MODE_DEFAULT), eq(mGlobalSettings), eq(mFalsingManager),
-                eq(mUserSwitcherController),
-                any(KeyguardSecurityContainer.UserSwitcherViewMode.UserSwitcherCallback.class),
-                eq(mFalsingA11yDelegate));
+                mSessionTracker, mock(DeviceProvisionedController.class))
+                  .create(mSecurityCallback);
     }
 
     @Test
@@ -364,12 +355,6 @@ public class KeyguardSecurityContainerControllerTest extends SysuiTestCase {
     }
 
     @Test
-    public void onBouncerVisibilityChanged_resetsScale() {
-        mKeyguardSecurityContainerController.onBouncerVisibilityChanged(false);
-        verify(mView).resetScale();
-    }
-
-    @Test
     public void showNextSecurityScreenOrFinish_setsSecurityScreenToPinAfterSimPinUnlock() {
         // GIVEN the current security method is SimPin
         when(mKeyguardUpdateMonitor.getUserHasTrust(anyInt())).thenReturn(false);
@@ -385,9 +370,7 @@ public class KeyguardSecurityContainerControllerTest extends SysuiTestCase {
                 SecurityMode.SimPin);
 
         // THEN the next security method of PIN is set, and the keyguard is not marked as done
-
-        verify(mViewMediatorCallback, never()).keyguardDonePending(anyBoolean(), anyInt());
-        verify(mViewMediatorCallback, never()).keyguardDone(anyBoolean(), anyInt());
+        verify(mSecurityCallback, never()).finish(anyBoolean(), anyInt());
         assertThat(mKeyguardSecurityContainerController.getCurrentSecurityMode())
                 .isEqualTo(SecurityMode.PIN);
     }
@@ -407,279 +390,5 @@ public class KeyguardSecurityContainerControllerTest extends SysuiTestCase {
         //THEN no action has happened, which will not dismiss the security screens
         assertThat(keyguardDone).isEqualTo(false);
         verify(mKeyguardUpdateMonitor, never()).getUserHasTrust(anyInt());
-    }
-
-    @Test
-    public void onSwipeUp_whenFaceDetectionIsNotRunning_initiatesFaceAuth() {
-        KeyguardSecurityContainer.SwipeListener registeredSwipeListener =
-                getRegisteredSwipeListener();
-        when(mKeyguardUpdateMonitor.isFaceDetectionRunning()).thenReturn(false);
-        setupGetSecurityView();
-
-        registeredSwipeListener.onSwipeUp();
-
-        verify(mKeyguardUpdateMonitor).requestFaceAuth(
-                FaceAuthApiRequestReason.SWIPE_UP_ON_BOUNCER);
-    }
-
-    @Test
-    public void onSwipeUp_whenFaceDetectionIsRunning_doesNotInitiateFaceAuth() {
-        KeyguardSecurityContainer.SwipeListener registeredSwipeListener =
-                getRegisteredSwipeListener();
-        when(mKeyguardUpdateMonitor.isFaceDetectionRunning()).thenReturn(true);
-
-        registeredSwipeListener.onSwipeUp();
-
-        verify(mKeyguardUpdateMonitor, never())
-                .requestFaceAuth(FaceAuthApiRequestReason.SWIPE_UP_ON_BOUNCER);
-    }
-
-    @Test
-    public void onSwipeUp_whenFaceDetectionIsTriggered_hidesBouncerMessage() {
-        KeyguardSecurityContainer.SwipeListener registeredSwipeListener =
-                getRegisteredSwipeListener();
-        when(mKeyguardUpdateMonitor.requestFaceAuth(FaceAuthApiRequestReason.SWIPE_UP_ON_BOUNCER))
-                .thenReturn(true);
-        setupGetSecurityView();
-
-        registeredSwipeListener.onSwipeUp();
-
-        verify(mKeyguardPasswordViewControllerMock).showMessage(null, null);
-    }
-
-    @Test
-    public void onSwipeUp_whenFaceDetectionIsNotTriggered_retainsBouncerMessage() {
-        KeyguardSecurityContainer.SwipeListener registeredSwipeListener =
-                getRegisteredSwipeListener();
-        when(mKeyguardUpdateMonitor.requestFaceAuth(FaceAuthApiRequestReason.SWIPE_UP_ON_BOUNCER))
-                .thenReturn(false);
-        setupGetSecurityView();
-
-        registeredSwipeListener.onSwipeUp();
-
-        verify(mKeyguardPasswordViewControllerMock, never()).showMessage(null, null);
-    }
-
-    @Test
-    public void onDensityOrFontScaleChanged() {
-        ArgumentCaptor<ConfigurationController.ConfigurationListener>
-                configurationListenerArgumentCaptor = ArgumentCaptor.forClass(
-                ConfigurationController.ConfigurationListener.class);
-        mKeyguardSecurityContainerController.onViewAttached();
-        verify(mConfigurationController).addCallback(configurationListenerArgumentCaptor.capture());
-        clearInvocations(mKeyguardSecurityViewFlipperController);
-
-        configurationListenerArgumentCaptor.getValue().onDensityOrFontScaleChanged();
-
-        verify(mView).onDensityOrFontScaleChanged();
-        verify(mKeyguardSecurityViewFlipperController).clearViews();
-        verify(mKeyguardSecurityViewFlipperController).getSecurityView(eq(SecurityMode.PIN),
-                any(KeyguardSecurityCallback.class));
-    }
-
-    @Test
-    public void onThemeChanged() {
-        ArgumentCaptor<ConfigurationController.ConfigurationListener>
-                configurationListenerArgumentCaptor = ArgumentCaptor.forClass(
-                ConfigurationController.ConfigurationListener.class);
-        mKeyguardSecurityContainerController.onViewAttached();
-        verify(mConfigurationController).addCallback(configurationListenerArgumentCaptor.capture());
-        clearInvocations(mKeyguardSecurityViewFlipperController);
-
-        configurationListenerArgumentCaptor.getValue().onThemeChanged();
-
-        verify(mView).reloadColors();
-        verify(mKeyguardSecurityViewFlipperController).clearViews();
-        verify(mKeyguardSecurityViewFlipperController).getSecurityView(eq(SecurityMode.PIN),
-                any(KeyguardSecurityCallback.class));
-    }
-
-    @Test
-    public void onUiModeChanged() {
-        ArgumentCaptor<ConfigurationController.ConfigurationListener>
-                configurationListenerArgumentCaptor = ArgumentCaptor.forClass(
-                ConfigurationController.ConfigurationListener.class);
-        mKeyguardSecurityContainerController.onViewAttached();
-        verify(mConfigurationController).addCallback(configurationListenerArgumentCaptor.capture());
-        clearInvocations(mKeyguardSecurityViewFlipperController);
-
-        configurationListenerArgumentCaptor.getValue().onUiModeChanged();
-
-        verify(mView).reloadColors();
-        verify(mKeyguardSecurityViewFlipperController).clearViews();
-        verify(mKeyguardSecurityViewFlipperController).getSecurityView(eq(SecurityMode.PIN),
-                any(KeyguardSecurityCallback.class));
-    }
-
-    @Test
-    public void testHasDismissActions() {
-        assertFalse("Action not set yet", mKeyguardSecurityContainerController.hasDismissActions());
-        mKeyguardSecurityContainerController.setOnDismissAction(mock(
-                        ActivityStarter.OnDismissAction.class),
-                null /* cancelAction */);
-        assertTrue("Action should exist", mKeyguardSecurityContainerController.hasDismissActions());
-    }
-
-    @Test
-    public void testWillRunDismissFromKeyguardIsTrue() {
-        ActivityStarter.OnDismissAction action = mock(ActivityStarter.OnDismissAction.class);
-        when(action.willRunAnimationOnKeyguard()).thenReturn(true);
-        mKeyguardSecurityContainerController.setOnDismissAction(action, null /* cancelAction */);
-
-        mKeyguardSecurityContainerController.finish(false /* strongAuth */, 0 /* currentUser */);
-
-        assertThat(mKeyguardSecurityContainerController.willRunDismissFromKeyguard()).isTrue();
-    }
-
-    @Test
-    public void testWillRunDismissFromKeyguardIsFalse() {
-        ActivityStarter.OnDismissAction action = mock(ActivityStarter.OnDismissAction.class);
-        when(action.willRunAnimationOnKeyguard()).thenReturn(false);
-        mKeyguardSecurityContainerController.setOnDismissAction(action, null /* cancelAction */);
-
-        mKeyguardSecurityContainerController.finish(false /* strongAuth */, 0 /* currentUser */);
-
-        assertThat(mKeyguardSecurityContainerController.willRunDismissFromKeyguard()).isFalse();
-    }
-
-    @Test
-    public void testWillRunDismissFromKeyguardIsFalseWhenNoDismissActionSet() {
-        mKeyguardSecurityContainerController.setOnDismissAction(null /* action */,
-                null /* cancelAction */);
-
-        mKeyguardSecurityContainerController.finish(false /* strongAuth */, 0 /* currentUser */);
-
-        assertThat(mKeyguardSecurityContainerController.willRunDismissFromKeyguard()).isFalse();
-    }
-
-    @Test
-    public void testSecurityCallbackFinish() {
-        when(mKeyguardStateController.canDismissLockScreen()).thenReturn(true);
-        when(mKeyguardUpdateMonitor.isUserUnlocked(0)).thenReturn(true);
-        mKeyguardSecurityContainerController.finish(true, 0);
-        verify(mViewMediatorCallback).keyguardDone(anyBoolean(), anyInt());
-    }
-
-    @Test
-    public void testSecurityCallbackFinish_cannotDismissLockScreenAndNotStrongAuth() {
-        when(mFeatureFlags.isEnabled(Flags.PREVENT_BYPASS_KEYGUARD)).thenReturn(true);
-        when(mKeyguardStateController.canDismissLockScreen()).thenReturn(false);
-        mKeyguardSecurityContainerController.finish(false, 0);
-        verify(mViewMediatorCallback, never()).keyguardDone(anyBoolean(), anyInt());
-    }
-
-    @Test
-    public void testOnStartingToHide() {
-        mKeyguardSecurityContainerController.onStartingToHide();
-        verify(mInputViewController).onStartingToHide();
-    }
-
-    @Test
-    public void testGravityReappliedOnConfigurationChange() {
-        // Set initial gravity
-        mTestableResources.addOverride(R.integer.keyguard_host_view_gravity,
-                Gravity.CENTER);
-        mTestableResources.addOverride(
-                R.bool.can_use_one_handed_bouncer, false);
-
-        // Kick off the initial pass...
-        mKeyguardSecurityContainerController.onInit();
-        verify(mView).setLayoutParams(any());
-        clearInvocations(mView);
-
-        // Now simulate a config change
-        mTestableResources.addOverride(R.integer.keyguard_host_view_gravity,
-                Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
-
-        mKeyguardSecurityContainerController.updateResources();
-        verify(mView).setLayoutParams(any());
-    }
-
-    @Test
-    public void testGravityUsesOneHandGravityWhenApplicable() {
-        mTestableResources.addOverride(
-                R.integer.keyguard_host_view_gravity,
-                Gravity.CENTER);
-        mTestableResources.addOverride(
-                R.integer.keyguard_host_view_one_handed_gravity,
-                Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
-
-        // Start disabled.
-        mTestableResources.addOverride(
-                R.bool.can_use_one_handed_bouncer, false);
-
-        mKeyguardSecurityContainerController.onInit();
-        verify(mView).setLayoutParams(argThat(
-                (ArgumentMatcher<FrameLayout.LayoutParams>) argument ->
-                        argument.gravity == Gravity.CENTER));
-        clearInvocations(mView);
-
-        // And enable
-        mTestableResources.addOverride(
-                R.bool.can_use_one_handed_bouncer, true);
-
-        mKeyguardSecurityContainerController.updateResources();
-        verify(mView).setLayoutParams(argThat(
-                (ArgumentMatcher<FrameLayout.LayoutParams>) argument ->
-                        argument.gravity == (Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM)));
-    }
-
-    @Test
-    public void testUpdateKeyguardPositionDelegatesToSecurityContainer() {
-        mKeyguardSecurityContainerController.updateKeyguardPosition(1.0f);
-        verify(mView).updatePositionByTouchX(1.0f);
-    }
-
-
-    @Test
-    public void testReinflateViewFlipper() {
-        mKeyguardSecurityContainerController.reinflateViewFlipper(() -> {});
-        verify(mKeyguardSecurityViewFlipperController).clearViews();
-        verify(mKeyguardSecurityViewFlipperController).getSecurityView(any(SecurityMode.class),
-                any(KeyguardSecurityCallback.class));
-    }
-
-    @Test
-    public void testReinflateViewFlipper_asyncBouncerFlagOn() {
-        when(mFeatureFlags.isEnabled(Flags.ASYNC_INFLATE_BOUNCER)).thenReturn(true);
-        KeyguardSecurityViewFlipperController.OnViewInflatedListener onViewInflatedListener =
-                () -> {
-                };
-        mKeyguardSecurityContainerController.reinflateViewFlipper(onViewInflatedListener);
-        verify(mKeyguardSecurityViewFlipperController).clearViews();
-        verify(mKeyguardSecurityViewFlipperController).asynchronouslyInflateView(
-                any(SecurityMode.class),
-                any(KeyguardSecurityCallback.class), eq(onViewInflatedListener));
-    }
-
-    @Test
-    public void testSideFpsControllerShow() {
-        mKeyguardSecurityContainerController.updateSideFpsVisibility(/* isVisible= */ true);
-        verify(mSideFpsController).show(
-                SideFpsUiRequestSource.PRIMARY_BOUNCER,
-                BiometricOverlayConstants.REASON_AUTH_KEYGUARD);
-    }
-
-    @Test
-    public void testSideFpsControllerHide() {
-        mKeyguardSecurityContainerController.updateSideFpsVisibility(/* isVisible= */ false);
-        verify(mSideFpsController).hide(SideFpsUiRequestSource.PRIMARY_BOUNCER);
-    }
-
-    private KeyguardSecurityContainer.SwipeListener getRegisteredSwipeListener() {
-        mKeyguardSecurityContainerController.onViewAttached();
-        verify(mView).setSwipeListener(mSwipeListenerArgumentCaptor.capture());
-        return mSwipeListenerArgumentCaptor.getValue();
-    }
-
-    private void attachView() {
-        mKeyguardSecurityContainerController.onViewAttached();
-        verify(mKeyguardUpdateMonitor).registerCallback(mKeyguardUpdateMonitorCallback.capture());
-    }
-
-    private void setupGetSecurityView() {
-        when(mKeyguardSecurityViewFlipperController.getSecurityView(
-                any(), any(KeyguardSecurityCallback.class)))
-                .thenReturn((KeyguardInputViewController) mKeyguardPasswordViewControllerMock);
     }
 }

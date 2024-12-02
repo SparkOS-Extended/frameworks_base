@@ -40,8 +40,6 @@ import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.pm.ActivityInfo;
-import android.content.pm.ResolveInfo;
 import android.os.Handler;
 import android.os.RemoteException;
 import android.os.UserHandle;

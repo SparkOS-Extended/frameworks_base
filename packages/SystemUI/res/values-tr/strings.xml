@@ -865,11 +865,8 @@
     <string name="media_move_closer_to_start_cast" msgid="2673104707465013176">"<xliff:g id="DEVICENAME">%1$s</xliff:g> cihazında oynatmak için yaklaşın"</string>
     <string name="media_move_closer_to_end_cast" msgid="7302555909119374738">"Burada oynatmak için <xliff:g id="DEVICENAME">%1$s</xliff:g> cihazına yaklaşın"</string>
     <string name="media_transfer_playing_different_device" msgid="7186806382609785610">"<xliff:g id="DEVICENAME">%1$s</xliff:g> cihazında oynatılıyor"</string>
-    <string name="media_transfer_failed" msgid="7955354964610603723">"Bir hata oluştu. Tekrar deneyin."</string>
-    <string name="media_transfer_loading" msgid="5544017127027152422">"Yükleme"</string>
-    <string name="media_ttt_default_device_type" msgid="4457646436153370169">"tablet"</string>
-    <string name="media_transfer_receiver_content_description_unknown_app" msgid="7381771464846263667">"Medyanız yayınlanıyor"</string>
-    <string name="media_transfer_receiver_content_description_with_app_name" msgid="8555975056850659389">"<xliff:g id="APP_LABEL">%1$s</xliff:g> yayınlanıyor"</string>
+    <string name="media_transfer_failed" msgid="7955354964610603723">"Bir sorun oldu. Tekrar deneyin."</string>
+    <string name="controls_media_empty_title" msgid="8296102892421573325">"<xliff:g id="APP_NAME">%1$s</xliff:g> çalışıyor"</string>
     <string name="controls_error_timeout" msgid="794197289772728958">"Devre dışı, uygulamaya bakın"</string>
     <string name="controls_error_removed" msgid="6675638069846014366">"Bulunamadı"</string>
     <string name="controls_error_removed_title" msgid="1207794911208047818">"Kontrol kullanılamıyor"</string>

@@ -16,14 +16,7 @@
 
 package com.android.internal.app;
 
-import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CANT_ACCESS_PERSONAL;
-import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CANT_ACCESS_WORK;
-import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CANT_SHARE_WITH_PERSONAL;
-import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CANT_SHARE_WITH_WORK;
-import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CROSS_PROFILE_BLOCKED_TITLE;
 import static android.content.ContentProvider.getUserIdFromUri;
-import static android.stats.devicepolicy.DevicePolicyEnums.RESOLVER_EMPTY_STATE_NO_SHARING_TO_PERSONAL;
-import static android.stats.devicepolicy.DevicePolicyEnums.RESOLVER_EMPTY_STATE_NO_SHARING_TO_WORK;
 
 import static com.android.internal.util.LatencyTracker.ACTION_LOAD_SHARE_SHEET;
 
@@ -542,6 +535,14 @@ public class ChooserActivity extends ResolverActivity implements
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        if (Settings.Secure.getIntForUser(getContentResolver(),
+                Settings.Secure.SECURE_FRP_MODE, 0,
+                getUserId()) == 1) {
+            Log.e(TAG, "Sharing disabled due to active FRP lock.");
+            super.onCreate(savedInstanceState);
+            finish();
+            return;
+        }
         final long intentReceivedTime = System.currentTimeMillis();
         mLatencyTracker.onActionStart(ACTION_LOAD_SHARE_SHEET);
 

@@ -251,12 +251,14 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                 }
             };
 
-    private final OnBackAnimationCallback mBackCallback = new OnBackAnimationCallback() {
-        @Override
-        public void onBackCancelled() {
-            // TODO(b/259608500): Remove once back API auto animates progress to 0 on cancel.
-            resetScale();
-        }
+    // Used to notify the container when something interesting happens.
+    public interface SecurityCallback {
+        /**
+         * Potentially dismiss the current security screen, after validating that all device
+         * security has been unlocked. Otherwise show the next screen.
+         */
+        boolean dismiss(boolean authenticated, int targetUserId, boolean bypassSecondaryLockScreen,
+                SecurityMode expectedSecurityMode);
 
         @Override
         public void onBackInvoked() { }

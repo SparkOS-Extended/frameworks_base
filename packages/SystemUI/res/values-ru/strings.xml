@@ -866,10 +866,7 @@
     <string name="media_move_closer_to_end_cast" msgid="7302555909119374738">"Чтобы начать воспроизведение здесь, подойдите ближе к устройству (<xliff:g id="DEVICENAME">%1$s</xliff:g>)."</string>
     <string name="media_transfer_playing_different_device" msgid="7186806382609785610">"Воспроизводится на устройстве \"<xliff:g id="DEVICENAME">%1$s</xliff:g>\"."</string>
     <string name="media_transfer_failed" msgid="7955354964610603723">"Произошла ошибка. Повторите попытку."</string>
-    <string name="media_transfer_loading" msgid="5544017127027152422">"Загрузка…"</string>
-    <string name="media_ttt_default_device_type" msgid="4457646436153370169">"планшет"</string>
-    <string name="media_transfer_receiver_content_description_unknown_app" msgid="7381771464846263667">"Трансляция медиаконтента"</string>
-    <string name="media_transfer_receiver_content_description_with_app_name" msgid="8555975056850659389">"Трансляция: <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="controls_media_empty_title" msgid="8296102892421573325">"Приложение \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" запущено"</string>
     <string name="controls_error_timeout" msgid="794197289772728958">"Нет ответа. Проверьте приложение."</string>
     <string name="controls_error_removed" msgid="6675638069846014366">"Не найдено."</string>
     <string name="controls_error_removed_title" msgid="1207794911208047818">"Управление недоступно"</string>

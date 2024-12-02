@@ -2128,18 +2128,49 @@ public class MediaControlPanelTest : SysuiTestCase() {
     }
 
     @Test
-    fun bindRecommendation_setAfterExecutors() {
-        fakeFeatureFlag.set(Flags.MEDIA_RECOMMENDATION_CARD_UPDATE, true)
-        whenever(recommendationViewHolder.mediaAppIcons)
-            .thenReturn(listOf(recAppIconItem, recAppIconItem, recAppIconItem))
-        whenever(recommendationViewHolder.cardTitle).thenReturn(recCardTitle)
-        whenever(recommendationViewHolder.mediaCoverItems)
-            .thenReturn(listOf(coverItem, coverItem, coverItem))
-        whenever(recommendationViewHolder.mediaProgressBars)
-            .thenReturn(listOf(recProgressBar1, recProgressBar2, recProgressBar3))
-        whenever(recommendationViewHolder.mediaSubtitles)
-            .thenReturn(listOf(recSubtitleMock1, recSubtitleMock2, recSubtitleMock3))
-        whenever(coverItem.imageMatrix).thenReturn(matrix)
+    fun outputSwitcher_hasCustomIntent_openOverLockscreen() {
+        // When the device for a media player has an intent that opens over lockscreen
+        val pendingIntent = mock(PendingIntent::class.java)
+        whenever(pendingIntent.isActivity).thenReturn(true)
+        whenever(keyguardStateController.isShowing).thenReturn(true)
+        whenever(activityIntentHelper.wouldPendingShowOverLockscreen(any(), any())).thenReturn(true)
+
+        val customDevice = device.copy(intent = pendingIntent)
+        val dataWithDevice = mediaData.copy(device = customDevice)
+        player.attachPlayer(viewHolder)
+        player.bindPlayer(dataWithDevice, KEY)
+
+        // When the user taps on the output switcher,
+        seamless.callOnClick()
+
+        // Then we send the pending intent as is, without modifying the original intent
+        verify(pendingIntent).send()
+        verify(pendingIntent, never()).getIntent()
+    }
+
+    @Test
+    fun outputSwitcher_hasCustomIntent_requiresUnlock() {
+        // When the device for a media player has an intent that cannot open over lockscreen
+        val pendingIntent = mock(PendingIntent::class.java)
+        whenever(pendingIntent.isActivity).thenReturn(true)
+        whenever(keyguardStateController.isShowing).thenReturn(true)
+        whenever(activityIntentHelper.wouldPendingShowOverLockscreen(any(), any()))
+                .thenReturn(false)
+
+        val customDevice = device.copy(intent = pendingIntent)
+        val dataWithDevice = mediaData.copy(device = customDevice)
+        player.attachPlayer(viewHolder)
+        player.bindPlayer(dataWithDevice, KEY)
+
+        // When the user taps on the output switcher,
+        seamless.callOnClick()
+
+        // Then we request keyguard dismissal
+        verify(activityStarter).postStartActivityDismissingKeyguard(eq(pendingIntent))
+    }
+
+    private fun getScrubbingChangeListener(): SeekBarViewModel.ScrubbingChangeListener =
+        withArgCaptor { verify(seekBarViewModel).setScrubbingChangeListener(capture()) }
 
         val bmp = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)

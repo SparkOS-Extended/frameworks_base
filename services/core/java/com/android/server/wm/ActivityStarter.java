@@ -1718,7 +1718,7 @@ class ActivityStarter {
         // Note that mStartActivity and source should be in the same Task at this point.
         if (mOptions != null && mOptions.isLaunchIntoPip()
                 && sourceRecord != null && sourceRecord.getTask() == mStartActivity.getTask()
-                && balCode != BAL_BLOCK) {
+                && !mRestrictedBgActivity) {
             mRootWindowContainer.moveActivityToPinnedRootTask(mStartActivity,
                     sourceRecord, "launch-into-pip");
         }

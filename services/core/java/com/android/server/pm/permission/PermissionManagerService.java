@@ -1111,6 +1111,10 @@ public class PermissionManagerService extends IPermissionManager.Stub {
                             skipCurrentFinish);
                 }
 
+                if (next == null || next.getNext() == null) {
+                    return;
+                }
+
                 RegisteredAttribution registered =
                         sRunningAttributionSources.remove(current.getToken());
                 if (registered != null) {

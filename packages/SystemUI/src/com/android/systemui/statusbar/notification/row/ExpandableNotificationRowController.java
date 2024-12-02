@@ -102,31 +102,6 @@ public class ExpandableNotificationRowController implements NotifViewController 
     private final SmartReplyController mSmartReplyController;
     private final ExpandableNotificationRowDragController mDragController;
     private final IStatusBarService mStatusBarService;
-    private final ExpandableNotificationRow.ExpandableNotificationRowLogger mLoggerCallback =
-            new ExpandableNotificationRow.ExpandableNotificationRowLogger() {
-                @Override
-                public void logNotificationExpansion(String key, boolean userAction,
-                        boolean expanded) {
-                    mNotificationLogger.onExpansionChanged(key, userAction, expanded);
-                }
-
-                @Override
-                public void logKeepInParentChildDetached(
-                        NotificationEntry child,
-                        NotificationEntry oldParent
-                ) {
-                    mLogBufferLogger.logKeepInParentChildDetached(child, oldParent);
-                }
-
-                @Override
-                public void logSkipAttachingKeepInParentChild(
-                        NotificationEntry child,
-                        NotificationEntry newParent
-                ) {
-                    mLogBufferLogger.logSkipAttachingKeepInParentChild(child, newParent);
-                }
-            };
-
 
     @Inject
     public ExpandableNotificationRowController(
@@ -224,7 +199,6 @@ public class ExpandableNotificationRowController implements NotifViewController 
                 mMetricsLogger,
                 mSmartReplyConstants,
                 mSmartReplyController,
-                mFeatureFlags,
                 mStatusBarService
         );
         mView.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);

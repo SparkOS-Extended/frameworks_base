@@ -16,13 +16,14 @@
 
 package com.android.systemui.statusbar.notification.interruption
 
-import com.android.systemui.log.dagger.NotificationInterruptLog
-import com.android.systemui.plugins.log.LogBuffer
-import com.android.systemui.plugins.log.LogLevel.DEBUG
-import com.android.systemui.plugins.log.LogLevel.INFO
-import com.android.systemui.plugins.log.LogLevel.WARNING
+import android.service.notification.StatusBarNotification
+import com.android.systemui.log.LogBuffer
+import com.android.systemui.log.LogLevel.DEBUG
+import com.android.systemui.log.LogLevel.INFO
+import com.android.systemui.log.LogLevel.WARNING
+import com.android.systemui.log.dagger.NotificationHeadsUpLog
+import com.android.systemui.log.dagger.NotificationLog
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
-import com.android.systemui.statusbar.notification.logKey
 import javax.inject.Inject
 
 class NotificationInterruptLogger @Inject constructor(
@@ -259,8 +260,8 @@ class NotificationInterruptLogger @Inject constructor(
     }
 
     fun logNoFullscreen(entry: NotificationEntry, reason: String) {
-        buffer.log(TAG, DEBUG, {
-            str1 = entry.logKey
+        hunBuffer.log(TAG, DEBUG, {
+            str1 = entry.key
             str2 = reason
         }, {
             "No FullScreenIntent: $str2: $str1"
@@ -268,8 +269,8 @@ class NotificationInterruptLogger @Inject constructor(
     }
 
     fun logNoFullscreenWarning(entry: NotificationEntry, reason: String) {
-        buffer.log(TAG, WARNING, {
-            str1 = entry.logKey
+        hunBuffer.log(TAG, WARNING, {
+            str1 = entry.key
             str2 = reason
         }, {
             "No FullScreenIntent: WARNING: $str2: $str1"
@@ -277,17 +278,17 @@ class NotificationInterruptLogger @Inject constructor(
     }
 
     fun logFullscreen(entry: NotificationEntry, reason: String) {
-        buffer.log(TAG, DEBUG, {
-            str1 = entry.logKey
+        hunBuffer.log(TAG, DEBUG, {
+            str1 = entry.key
             str2 = reason
         }, {
             "FullScreenIntent: $str2: $str1"
         })
     }
 
-    fun keyguardHideNotification(entry: NotificationEntry) {
-        buffer.log(TAG, DEBUG, {
-            str1 = entry.logKey
+    fun keyguardHideNotification(key: String) {
+        hunBuffer.log(TAG, DEBUG, {
+            str1 = key
         }, {
             "Keyguard Hide Notification: $str1"
         })

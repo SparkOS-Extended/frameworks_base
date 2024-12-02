@@ -483,6 +483,22 @@ public class KeyguardNotificationVisibilityProviderTest  extends SysuiTestCase {
     }
 
     @Test
+    public void notificationVisibilityPublic() {
+        // GIVEN a VISIBILITY_PUBLIC notification
+        NotificationEntryBuilder entryBuilder = new NotificationEntryBuilder()
+                .setUser(new UserHandle(NOTIF_USER_ID));
+        entryBuilder.modifyNotification(mContext)
+                .setVisibility(VISIBILITY_PUBLIC);
+        mEntry = entryBuilder.build();
+
+        // WHEN we're in an 'unfiltered-keyguard-showing' state
+        setupUnfilteredState(mEntry);
+
+        // THEN don't hide the entry based on visibility.
+        assertFalse(mKeyguardNotificationVisibilityProvider.shouldHideNotification(mEntry));
+    }
+
+    @Test
     public void notificationVisibilityPrivate() {
         // GIVEN a VISIBILITY_PRIVATE notification
         NotificationEntryBuilder entryBuilder = new NotificationEntryBuilder()

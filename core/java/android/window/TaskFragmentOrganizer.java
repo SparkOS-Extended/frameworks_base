@@ -400,9 +400,10 @@ public class TaskFragmentOrganizer extends WindowOrganizer {
             }
         }
 
-        // Notify the server, and the server should apply the WindowContainerTransaction.
-        onTransactionHandled(transaction.getTransactionToken(), wct, getTransitionType(wct),
-                false /* shouldApplyIndependently */);
+    @Override
+    public void applyTransaction(@NonNull WindowContainerTransaction t) {
+        t.setTaskFragmentOrganizer(mInterface);
+        super.applyTransaction(t);
     }
 
     private final ITaskFragmentOrganizer mInterface = new ITaskFragmentOrganizer.Stub() {

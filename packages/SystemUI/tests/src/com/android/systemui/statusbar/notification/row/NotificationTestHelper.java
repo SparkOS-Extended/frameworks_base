@@ -549,7 +549,6 @@ public class NotificationTestHelper {
                 mock(MetricsLogger.class),
                 mock(SmartReplyConstants.class),
                 mock(SmartReplyController.class),
-                mFeatureFlags,
                 mock(IStatusBarService.class));
 
         row.setAboveShelfChangedListener(aboveShelf -> { });

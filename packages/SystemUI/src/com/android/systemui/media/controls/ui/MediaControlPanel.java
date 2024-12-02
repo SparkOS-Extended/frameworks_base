@@ -684,21 +684,20 @@ public class MediaControlPanel {
                                     FalsingManager.LOW_PENALTY)) {
                         return;
                     }
-
-                    if (showBroadcastButton) {
-                        // If the current media app is not broadcasted and users press the outputer
-                        // button, we should pop up the broadcast dialog to check do they want to
-                        // switch broadcast to the other media app, otherwise we still pop up the
-                        // media output dialog.
-                        if (!mIsCurrentBroadcastedApp) {
-                            mLogger.logOpenBroadcastDialog(mUid, mPackageName, mInstanceId);
-                            mCurrentBroadcastApp = device.getName().toString();
-                            mBroadcastDialogController.createBroadcastDialog(mCurrentBroadcastApp,
-                                    mPackageName, true, mMediaViewHolder.getSeamlessButton());
+                    mLogger.logOpenOutputSwitcher(mUid, mPackageName, mInstanceId);
+                    if (device.getIntent() != null) {
+                        PendingIntent deviceIntent = device.getIntent();
+                        boolean showOverLockscreen = mKeyguardStateController.isShowing()
+                                && mActivityIntentHelper.wouldPendingShowOverLockscreen(
+                                    deviceIntent, mLockscreenUserManager.getCurrentUserId());
+                        if (deviceIntent.isActivity() && !showOverLockscreen) {
+                            mActivityStarter.postStartActivityDismissingKeyguard(deviceIntent);
                         } else {
-                            mLogger.logOpenOutputSwitcher(mUid, mPackageName, mInstanceId);
-                            mMediaOutputDialogFactory.create(mPackageName, true,
-                                    mMediaViewHolder.getSeamlessButton());
+                            try {
+                                deviceIntent.send();
+                            } catch (PendingIntent.CanceledException e) {
+                                Log.e(TAG, "Device pending intent was canceled");
+                            }
                         }
                     } else {
                         mLogger.logOpenOutputSwitcher(mUid, mPackageName, mInstanceId);

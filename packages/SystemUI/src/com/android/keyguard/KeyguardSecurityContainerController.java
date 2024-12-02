@@ -78,6 +78,7 @@ import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.shared.system.SysUiStatsLog;
 import com.android.systemui.statusbar.policy.ConfigurationController;
+import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.statusbar.policy.UserSwitcherController;
 import com.android.systemui.util.ViewController;
@@ -186,10 +187,10 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
         }
 
         @Override
-        public boolean dismiss(boolean authenticated, int targetId,
+        public void dismiss(boolean authenticated, int targetId,
                 boolean bypassSecondaryLockScreen, SecurityMode expectedSecurityMode) {
-            return showNextSecurityScreenOrFinish(
-                    authenticated, targetId, bypassSecondaryLockScreen, expectedSecurityMode);
+            mSecurityCallback.dismiss(authenticated, targetId, bypassSecondaryLockScreen,
+                    expectedSecurityMode);
         }
 
         @Override
@@ -331,33 +332,12 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
             };
     private final KeyguardUpdateMonitorCallback mKeyguardUpdateMonitorCallback =
             new KeyguardUpdateMonitorCallback() {
-                @Override
-                public void onTrustGrantedForCurrentUser(
-                        boolean dismissKeyguard,
-                        boolean newlyUnlocked,
-                        TrustGrantFlags flags,
-                        String message
-                ) {
-                    if (dismissKeyguard) {
-                        if (!mView.isVisibleToUser()) {
-                            // The trust agent dismissed the keyguard without the user proving
-                            // that they are present (by swiping up to show the bouncer). That's
-                            // fine if the user proved presence via some other way to the trust
-                            // agent.
-                            Log.i(TAG, "TrustAgent dismissed Keyguard.");
-                        }
-                        mKeyguardSecurityCallback.dismiss(
-                                false /* authenticated */,
-                                KeyguardUpdateMonitor.getCurrentUser(),
-                                /* bypassSecondaryLockScreen */ false,
-                                SecurityMode.Invalid
-                        );
-                    } else {
-                        if (flags.isInitiatedByUser() || flags.dismissKeyguardRequested()) {
-                            mViewMediatorCallback.playTrustedSound();
-                        }
-                    }
-                }
+        @Override
+        public void onDevicePolicyManagerStateChanged() {
+            showPrimarySecurityScreen(false);
+        }
+    };
+    private final DeviceProvisionedController mDeviceProvisionedController;
 
                 @Override
                 public void onDevicePolicyManagerStateChanged() {
@@ -382,11 +362,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
             FeatureFlags featureFlags,
             GlobalSettings globalSettings,
             SessionTracker sessionTracker,
-            Optional<SideFpsController> sideFpsController,
-            FalsingA11yDelegate falsingA11yDelegate,
-            TelephonyManager telephonyManager,
-            ViewMediatorCallback viewMediatorCallback,
-            AudioManager audioManager
+            DeviceProvisionedController deviceProvisionedController
     ) {
         super(view);
         mLockPatternUtils = lockPatternUtils;
@@ -406,11 +382,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
         mFeatureFlags = featureFlags;
         mGlobalSettings = globalSettings;
         mSessionTracker = sessionTracker;
-        mSideFpsController = sideFpsController;
-        mFalsingA11yDelegate = falsingA11yDelegate;
-        mTelephonyManager = telephonyManager;
-        mViewMediatorCallback = viewMediatorCallback;
-        mAudioManager = audioManager;
+        mDeviceProvisionedController = deviceProvisionedController;
     }
 
     @Override
@@ -574,16 +546,12 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
     }
 
     /**
-     * @return the top of the corresponding view.
+     * Potentially dismiss the current security screen, after validating that all device
+     * security has been unlocked. Otherwise show the next screen.
      */
-    public int getTop() {
-        int top = mView.getTop();
-        // The password view has an extra top padding that should be ignored.
-        if (getCurrentSecurityMode() == SecurityMode.Password) {
-            View messageArea = mView.findViewById(R.id.keyguard_message_area);
-            top += messageArea.getTop();
-        }
-        return top;
+    public void dismiss(boolean authenticated, int targetUserId,
+            SecurityMode expectedSecurityMode) {
+        mKeyguardSecurityCallback.dismiss(authenticated, targetUserId, expectedSecurityMode);
     }
 
     /** Set true if the view can be interacted with */
@@ -752,8 +720,11 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
                 case SimPuk:
                     // Shortcut for SIM PIN/PUK to go to directly to user's security screen or home
                     SecurityMode securityMode = mSecurityModel.getSecurityMode(targetUserId);
-                    if (securityMode == SecurityMode.None || mLockPatternUtils.isLockScreenDisabled(
-                            KeyguardUpdateMonitor.getCurrentUser())) {
+                    boolean isLockscreenDisabled = mLockPatternUtils.isLockScreenDisabled(
+                            KeyguardUpdateMonitor.getCurrentUser())
+                            || !mDeviceProvisionedController.isUserSetup(targetUserId);
+
+                    if (securityMode == SecurityMode.None && isLockscreenDisabled) {
                         finish = true;
                         eventSubtype = BOUNCER_DISMISS_SIM;
                         uiEvent = BouncerUiEvent.BOUNCER_DISMISS_SIM;
@@ -1081,31 +1052,73 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
         reinflateViewFlipper(() -> mView.onDensityOrFontScaleChanged());
     }
 
-    /**
-     * Reinflate the view flipper child view.
-     */
-    public void reinflateViewFlipper(
-            KeyguardSecurityViewFlipperController.OnViewInflatedListener onViewInflatedListener) {
-        mSecurityViewFlipperController.clearViews();
-        if (mFeatureFlags.isEnabled(Flags.ASYNC_INFLATE_BOUNCER)) {
-            mSecurityViewFlipperController.asynchronouslyInflateView(mCurrentSecurityMode,
-                    mKeyguardSecurityCallback, onViewInflatedListener);
-        } else {
-            mSecurityViewFlipperController.getSecurityView(mCurrentSecurityMode,
-                    mKeyguardSecurityCallback);
-            onViewInflatedListener.onViewInflated();
+        private final KeyguardSecurityContainer mView;
+        private final AdminSecondaryLockScreenController.Factory
+                mAdminSecondaryLockScreenControllerFactory;
+        private final LockPatternUtils mLockPatternUtils;
+        private final KeyguardUpdateMonitor mKeyguardUpdateMonitor;
+        private final KeyguardSecurityModel mKeyguardSecurityModel;
+        private final MetricsLogger mMetricsLogger;
+        private final UiEventLogger mUiEventLogger;
+        private final KeyguardStateController mKeyguardStateController;
+        private final KeyguardSecurityViewFlipperController mSecurityViewFlipperController;
+        private final ConfigurationController mConfigurationController;
+        private final FalsingCollector mFalsingCollector;
+        private final FalsingManager mFalsingManager;
+        private final GlobalSettings mGlobalSettings;
+        private final FeatureFlags mFeatureFlags;
+        private final UserSwitcherController mUserSwitcherController;
+        private final SessionTracker mSessionTracker;
+        private final DeviceProvisionedController mDeviceProvisionedController;
+
+        @Inject
+        Factory(KeyguardSecurityContainer view,
+                AdminSecondaryLockScreenController.Factory
+                        adminSecondaryLockScreenControllerFactory,
+                LockPatternUtils lockPatternUtils,
+                KeyguardUpdateMonitor keyguardUpdateMonitor,
+                KeyguardSecurityModel keyguardSecurityModel,
+                MetricsLogger metricsLogger,
+                UiEventLogger uiEventLogger,
+                KeyguardStateController keyguardStateController,
+                KeyguardSecurityViewFlipperController securityViewFlipperController,
+                ConfigurationController configurationController,
+                FalsingCollector falsingCollector,
+                FalsingManager falsingManager,
+                UserSwitcherController userSwitcherController,
+                FeatureFlags featureFlags,
+                GlobalSettings globalSettings,
+                SessionTracker sessionTracker,
+                DeviceProvisionedController deviceProvisionedController) {
+            mView = view;
+            mAdminSecondaryLockScreenControllerFactory = adminSecondaryLockScreenControllerFactory;
+            mLockPatternUtils = lockPatternUtils;
+            mKeyguardUpdateMonitor = keyguardUpdateMonitor;
+            mKeyguardSecurityModel = keyguardSecurityModel;
+            mMetricsLogger = metricsLogger;
+            mUiEventLogger = uiEventLogger;
+            mKeyguardStateController = keyguardStateController;
+            mSecurityViewFlipperController = securityViewFlipperController;
+            mConfigurationController = configurationController;
+            mFalsingCollector = falsingCollector;
+            mFalsingManager = falsingManager;
+            mFeatureFlags = featureFlags;
+            mGlobalSettings = globalSettings;
+            mUserSwitcherController = userSwitcherController;
+            mSessionTracker = sessionTracker;
+            mDeviceProvisionedController = deviceProvisionedController;
         }
     }
 
-    /**
-     * Fades and translates in/out the security screen.
-     * Fades in as expansion approaches 0.
-     * Animation duration is between 0.33f and 0.67f of panel expansion fraction.
-     * @param fraction amount of the screen that should show.
-     */
-    public void setExpansion(float fraction) {
-        float scaledFraction = BouncerPanelExpansionCalculator.showBouncerProgress(fraction);
-        mView.setAlpha(MathUtils.constrain(1 - scaledFraction, 0f, 1f));
-        mView.setTranslationY(scaledFraction * mTranslationY);
+        public KeyguardSecurityContainerController create(
+                SecurityCallback securityCallback) {
+            return new KeyguardSecurityContainerController(mView,
+                    mAdminSecondaryLockScreenControllerFactory, mLockPatternUtils,
+                    mKeyguardUpdateMonitor, mKeyguardSecurityModel, mMetricsLogger, mUiEventLogger,
+                    mKeyguardStateController, securityCallback, mSecurityViewFlipperController,
+                    mConfigurationController, mFalsingCollector, mFalsingManager,
+                    mUserSwitcherController, mFeatureFlags, mGlobalSettings, mSessionTracker,
+                    mDeviceProvisionedController);
+        }
     }
 }

@@ -318,10 +318,6 @@ public final class NotificationChannel implements Parcelable {
         if (mVibration != null && mVibration.length > MAX_VIBRATION_LENGTH) {
             mVibration = Arrays.copyOf(mVibration, MAX_VIBRATION_LENGTH);
         }
-        mCustomVibration = in.createLongArray();
-        if (mCustomVibration != null && mCustomVibration.length > MAX_VIBRATION_LENGTH) {
-            mCustomVibration = Arrays.copyOf(mCustomVibration, MAX_VIBRATION_LENGTH);
-        }
         mUserLockedFields = in.readInt();
         mFgServiceShown = in.readByte() != 0;
         mVibrationEnabled = in.readByte() != 0;
