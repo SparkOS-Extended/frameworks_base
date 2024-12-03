@@ -5572,23 +5572,9 @@ class Task extends TaskFragment {
                             srec.packageName);
                 }
             } else {
-                try {
-                    abort = !mTaskSupervisor.checkStartAnyActivityPermission(destIntent,
-                            parent.info, null /* resultWho */, -1 /* requestCode */, srec.getPid(),
-                            callingUid, srec.info.packageName, null /* callingFeatureId */,
-                            false /* ignoreTargetSecurity */, false /* launchingInTask */, srec.app,
-                            null /* resultRecord */, null /* resultRootTask */);
-                } catch (SecurityException e) {
-                    abort = true;
-                }
-                if (abort) {
-                    android.util.EventLog.writeEvent(0x534e4554, "238605611", callingUid, "");
-                    foundParentInTask = false;
-                } else {
-                    parent.deliverNewIntentLocked(callingUid, destIntent, destGrants,
-                            srec.packageName);
-                }
-            } else {
+                    ActivityInfo aInfo = AppGlobals.getPackageManager().getActivityInfo(
+                            destIntent.getComponent(), ActivityManagerService.STOCK_PM_FLAGS,
+                            srec.mUserId);
                 // TODO(b/64750076): Check if calling pid should really be -1.
                 final int res = mAtmService.getActivityStartController()
                         .obtainStarter(destIntent, "navigateUpTo")

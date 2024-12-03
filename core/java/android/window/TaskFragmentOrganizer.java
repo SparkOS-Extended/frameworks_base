@@ -399,11 +399,6 @@ public class TaskFragmentOrganizer extends WindowOrganizer {
                             "Unknown TaskFragmentEvent=" + change.getType());
             }
         }
-
-    @Override
-    public void applyTransaction(@NonNull WindowContainerTransaction t) {
-        t.setTaskFragmentOrganizer(mInterface);
-        super.applyTransaction(t);
     }
 
     private final ITaskFragmentOrganizer mInterface = new ITaskFragmentOrganizer.Stub() {
